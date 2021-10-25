@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using Rnd = UnityEngine.Random;
 
@@ -39,6 +40,8 @@ public class ASquareScript : MonoBehaviour
     private int[] _colorShuffleArr = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
     private string[] COLORNAMES = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
 
+    private bool TwitchPlaysActive;
+
     private void Start()
     {
         _moduleId = _moduleIdCounter++;
@@ -47,8 +50,8 @@ public class ASquareScript : MonoBehaviour
 
         SquareSel.OnInteract += SquarePress;
         SquareSel.OnInteractEnded += SquareRelease;
-        ModuleSel.OnFocus += ModuleFocus;
-        ModuleSel.OnDefocus += ModuleDefocus;
+        ModuleSel.OnFocus += delegate { ModuleFocus(!TwitchPlaysActive); };
+        ModuleSel.OnDefocus += delegate { ModuleDefocus(!TwitchPlaysActive); };
 
     tryAgain:
         _colorShuffleArr.Shuffle();
@@ -203,7 +206,8 @@ public class ASquareScript : MonoBehaviour
 
     private void SetColorblindMode(bool mode)
     {
-        ColorblindTextObj.SetActive(mode);
+        _colorblindMode = mode;
+        ColorblindTextObj.SetActive(_colorblindMode);
     }
 
     private bool SquarePress()
@@ -261,20 +265,23 @@ public class ASquareScript : MonoBehaviour
         }
     }
 
-    private void ModuleFocus()
+    private void ModuleFocus(bool auto = true)
     {
-        if (!_moduleSolved && !_isStriking)
+        if (!_moduleSolved && !_isStriking && auto)
         {
+            Audio.PlaySoundAtTransform("Focus", transform);
             ColorblindText.text = COLORNAMES[_colorShuffleArr[_timerLastDigit]].ToUpper();
             SquareObj.material = SquareColors[_colorShuffleArr[_timerLastDigit]];
             _currentColor = _timerLastDigit;
         }
     }
 
-    private void ModuleDefocus()
+    private void ModuleDefocus(bool auto = true)
     {
-        if (!_moduleSolved && !_isStriking)
+        if (!_moduleSolved && !_isStriking && auto)
         {
+            if (_canMakeNoise)
+                Audio.PlaySoundAtTransform("Defocus", transform);
             ColorblindText.text = "WHITE";
             SquareObj.material = SquareWhite;
             _currentColor = 10;
@@ -289,10 +296,10 @@ public class ASquareScript : MonoBehaviour
             _timeIx = _timerLastDigit;
             if (_isHeld)
             {
+                Audio.PlaySoundAtTransform("Input", transform);
                 Debug.LogFormat("[A Square #{0}] Held the color {1}.", _moduleId, COLORNAMES[_colorShuffleArr[_currentColor]]);
                 _isHeld = false;
                 _inputColors.Add(_colorShuffleArr[_currentColor]);
-                
             }
         }
     }
@@ -304,5 +311,71 @@ public class ASquareScript : MonoBehaviour
         _isStriking = false;
         SquareObj.material = SquareColors[_colorShuffleArr[_currentColor]];
         ColorblindText.text = COLORNAMES[_colorShuffleArr[_currentColor]].ToUpper();
+    }
+
+    private bool _canMakeNoise = true;
+
+#pragma warning disable 0414
+    private readonly string TwitchHelpMessage = "!{0} focus 2 : Focus on a square on a 2. | !{0} submit 5 : Hold a square after focusing it on a 5. | !{0} cycle : Cycle through all colors. | !{0} colorblind : Set colorblind mode active.";
+#pragma warning restore 0414
+
+    private IEnumerator ProcessTwitchCommand(string command)
+    {
+        int val;
+
+        var m = Regex.Match(command, @"^\s*(?:focus\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (m.Success)
+        {
+            if (!int.TryParse(m.Groups[1].Value, out val) || val < 0 || val > 9)
+                yield break;
+            yield return null;
+            while (_timerLastDigit != val)
+                yield return null;
+            ModuleFocus();
+            yield return new WaitForSeconds(1.5f);
+            ModuleDefocus();
+        }
+
+        var n = Regex.Match(command, @"^\s*(?:submit\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (n.Success)
+        {
+            if (!int.TryParse(n.Groups[1].Value, out val) || val < 0 || val > 9)
+                yield break;
+            yield return null;
+            while (_timerLastDigit != val)
+                yield return null;
+            ModuleFocus();
+            //yield return new WaitForSeconds(0.1f);
+            SquareSel.OnInteract();
+            while (_timerLastDigit == val)
+                yield return null;
+            SquareSel.OnInteractEnded();
+            //yield return new WaitForSeconds(0.1f);
+            ModuleDefocus();
+        }
+
+        var o = Regex.Match(command, @"^\s*(?:cycle)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (o.Success)
+        {
+            yield return null;
+            _canMakeNoise = false;
+            for (int i = 0; i < 11; i++)
+            {
+                val = _timerLastDigit;
+                ModuleFocus();
+                while (val == _timerLastDigit)
+                    yield return "trycancel";
+                ModuleDefocus();
+            }
+            _canMakeNoise = true;
+        }
+
+        var p = Regex.Match(command, @"^\s*(?:colorblind)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (p.Success)
+        {
+            yield return null;
+            SetColorblindMode(!_colorblindMode);
+        }
+        yield break;
     }
 }
