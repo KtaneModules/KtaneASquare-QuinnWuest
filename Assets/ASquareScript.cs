@@ -65,7 +65,7 @@ public class ASquareScript : MonoBehaviour
             }
         if (score != 3)
             goto tryAgain;
-        Debug.LogFormat("[A Square #{0}] Color corder: {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}.", _moduleId,
+        Debug.LogFormat("[A Square #{0}] Color order: {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}.", _moduleId,
             COLORNAMES[_colorShuffleArr[0]],
             COLORNAMES[_colorShuffleArr[1]],
             COLORNAMES[_colorShuffleArr[2]],
