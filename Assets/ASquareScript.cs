@@ -30,6 +30,7 @@ public class ASquareScript : MonoBehaviour
 
     private bool _isHeld;
     private bool _isStriking;
+    private List<int> _indexColors = new List<int>();
 
     private int _timerLastDigit;
     private int _timeIx;
@@ -55,7 +56,7 @@ public class ASquareScript : MonoBehaviour
 
     tryAgain:
         _colorShuffleArr.Shuffle();
-        List<int> _indexColors = new List<int>();
+        _indexColors = new List<int>();
         int score = 0;
         for (int i = 0; i < 10; i++)
             if (_colorShuffleArr[i] == i)
