@@ -496,6 +496,7 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 038b2187455e3414da4ebd401136e4ef, type: 2}
   - {fileID: 2100000, guid: 5cd9ff5df350ded4abcc863e9a878dee, type: 2}
   - {fileID: 2100000, guid: fb7cf8f7c4af713449c4fb8b2a7510b3, type: 2}
+  - {fileID: 2100000, guid: a176ef1fe64c65d4db6e2c27fcf7aeac, type: 2}
   SquareWhite: {fileID: 2100000, guid: a176ef1fe64c65d4db6e2c27fcf7aeac, type: 2}
   SquareCorrect: {fileID: 2100000, guid: d967d9a2af79c9349807b2609010d9b9, type: 2}
   SquareWrong: {fileID: 2100000, guid: 51ef33c649928af4fb44cebf034c9723, type: 2}

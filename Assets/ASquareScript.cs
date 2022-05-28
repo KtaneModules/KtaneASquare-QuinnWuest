@@ -54,7 +54,7 @@ public class ASquareScript : MonoBehaviour
         ModuleSel.OnFocus += delegate { ModuleFocus(!TwitchPlaysActive); };
         ModuleSel.OnDefocus += delegate { ModuleDefocus(!TwitchPlaysActive); };
 
-    tryAgain:
+        tryAgain:
         _colorShuffleArr.Shuffle();
         _indexColors = new List<int>();
         int score = 0;
@@ -218,7 +218,7 @@ public class ASquareScript : MonoBehaviour
         {
             _isHeld = true;
         }
-        //Debug.LogFormat("[A Square #{0}] Press.", _moduleId);
+
         return false;
     }
 
@@ -310,8 +310,16 @@ public class ASquareScript : MonoBehaviour
         _isStriking = true;
         yield return new WaitForSeconds(1.5f);
         _isStriking = false;
-        SquareObj.material = SquareColors[_colorShuffleArr[_currentColor]];
-        ColorblindText.text = COLORNAMES[_colorShuffleArr[_currentColor]].ToUpper();
+        if (!TwitchPlaysActive)
+        {
+            SquareObj.material = SquareColors[_colorShuffleArr[_currentColor]];
+            ColorblindText.text = COLORNAMES[_colorShuffleArr[_currentColor]].ToUpper();
+        }
+        else
+        {
+            SquareObj.material = SquareWhite;
+            ColorblindText.text = "WHITE";
+        }
     }
 
     private bool _canMakeNoise = true;
@@ -323,7 +331,6 @@ public class ASquareScript : MonoBehaviour
     private IEnumerator ProcessTwitchCommand(string command)
     {
         int val;
-
         var m = Regex.Match(command, @"^\s*(?:focus\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
@@ -376,6 +383,36 @@ public class ASquareScript : MonoBehaviour
         {
             yield return null;
             SetColorblindMode(!_colorblindMode);
+        }
+        yield break;
+    }
+
+    private IEnumerator TwitchHandleForcedSolve()
+    {
+        for (int i = 0; i < _inputColors.Count; i++)
+            if (_inputColors[i] != _correctColors[i])
+            {
+                _inputColors = new List<int>();
+                Debug.LogFormat("[A Square #{0}] An incorrect submission has been detected while executing the TP autosolver. Resetting input to avoid strike.", _moduleId);
+                // There's a bit of a debate on what to do in the case of an autosolver being run while the module has reached a state where a strike is unavoidable.
+                // I, however, have the stance that modules should never enter such a state, and should strike anyway if such state is detected. (Refer to X01)
+                // However, I've come to this stance after developing this module, and I can't really go backwards...??
+                // I much prefer that autosolvers appear to solve the same way as a human solves it, regardless if internal data needs to change,
+                // whereas autosolver developers such as eXish believe that the module should solve immediately, so internal data doesn't get changed.
+            }
+        for (int i = _inputColors.Count; i < 3; i++)
+        {
+            while (Array.IndexOf(_colorShuffleArr, _correctColors[i]) != (int)BombInfo.GetTime() % 10)
+                yield return true;
+            ModuleFocus();
+            yield return null;
+            SquareSel.OnInteract();
+            int t = (int)BombInfo.GetTime() % 10;
+            while ((int)BombInfo.GetTime() % 10 == t)
+                yield return null;
+            SquareSel.OnInteractEnded();
+            yield return null;
+            ModuleDefocus();
         }
         yield break;
     }
