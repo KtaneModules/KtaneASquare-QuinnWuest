@@ -38,10 +38,12 @@ public class ASquareScript : MonoBehaviour
     private int[] _correctColors = new int[3];
     private List<int> _inputColors = new List<int>();
 
-    private int[] _colorShuffleArr = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
-    private string[] COLORNAMES = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
+    private int[] _colorShuffleArr;
+    private string[] _colorNames = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
 
     private bool TwitchPlaysActive;
+    private bool _canChangeColors = true;
+    private int _currentInputIx;
 
     private void Start()
     {
@@ -51,110 +53,67 @@ public class ASquareScript : MonoBehaviour
 
         SquareSel.OnInteract += SquarePress;
         SquareSel.OnInteractEnded += SquareRelease;
-        ModuleSel.OnFocus += delegate { ModuleFocus(!TwitchPlaysActive); };
-        ModuleSel.OnDefocus += delegate { ModuleDefocus(!TwitchPlaysActive); };
+        ModuleSel.OnHighlight += delegate { ChangeToColor(!TwitchPlaysActive); };
+        ModuleSel.OnHighlightEnded += delegate { ChangeToWhite(!TwitchPlaysActive); };
+        ModuleSel.OnFocus += delegate { _canChangeColors = false; };
+        ModuleSel.OnDefocus += delegate { _canChangeColors = true; ChangeToWhite(!TwitchPlaysActive); };
 
-        tryAgain:
-        _colorShuffleArr.Shuffle();
-        _indexColors = new List<int>();
-        int score = 0;
-        for (int i = 0; i < 10; i++)
-            if (_colorShuffleArr[i] == i)
-            {
-                score++;
-                _indexColors.Add(i);
-            }
-        if (score != 3)
-            goto tryAgain;
-        Debug.LogFormat("[A Square #{0}] Color order: {1}, {2}, {3}, {4}, {5}, {6}, {7}, {8}, {9}, {10}.", _moduleId,
-            COLORNAMES[_colorShuffleArr[0]],
-            COLORNAMES[_colorShuffleArr[1]],
-            COLORNAMES[_colorShuffleArr[2]],
-            COLORNAMES[_colorShuffleArr[3]],
-            COLORNAMES[_colorShuffleArr[4]],
-            COLORNAMES[_colorShuffleArr[5]],
-            COLORNAMES[_colorShuffleArr[6]],
-            COLORNAMES[_colorShuffleArr[7]],
-            COLORNAMES[_colorShuffleArr[8]],
-            COLORNAMES[_colorShuffleArr[9]]
-            );
+        do
+            _colorShuffleArr = Enumerable.Range(0, 10).ToArray().Shuffle();
+        while (Enumerable.Range(0, 10).Where(i => Array.IndexOf(_colorShuffleArr, i) == i).Count() != 3);
+        _indexColors = Enumerable.Range(0, 10).Where(i => Array.IndexOf(_colorShuffleArr, i) == i).ToList();
+        Debug.LogFormat("[A Square #{0}] Color order: {1}.", _moduleId, Enumerable.Range(0, 10).Select(i => _colorNames[_colorShuffleArr[i]]).Join(", "));
 
         Debug.LogFormat("[A Square #{0}] Index colors are: {1}, {2}, {3}.", _moduleId,
-            COLORNAMES[_indexColors[0]],
-            COLORNAMES[_indexColors[1]],
-            COLORNAMES[_indexColors[2]]
+            _colorNames[_indexColors[0]],
+            _colorNames[_indexColors[1]],
+            _colorNames[_indexColors[2]]
             );
 
         //Calculate correct colors:
         if ((_indexColors[0] < 5 && _indexColors[1] < 5 && _indexColors[2] < 5) || (_indexColors[0] > 4 && _indexColors[1] > 4 && _indexColors[2] > 4))
         {
-            _correctColors[0] = _indexColors[0];
-            _correctColors[1] = _indexColors[1];
-            _correctColors[2] = _indexColors[2];
+            for (int i = 0; i < 3; i++)
+                _correctColors[i] = _indexColors[i];
             _correctColors.ToList().Sort();
-            Debug.LogFormat("[A Square #{0}] A square's colors are all in the same row. Correct colors are {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            Debug.LogFormat("[A Square #{0}] A square's colors are all in the same row. Correct colors are {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
         else if (_indexColors[0] % 5 == _indexColors[1] % 5)
         {
-            List<int> extraColors = new List<int>();
+            var extraColors = new List<int>();
             for (int i = 0 + (_indexColors[2] > 4 ? 5 : 0); i < 5 + (_indexColors[2] > 4 ? 5 : 0); i++)
-            {
                 if (!_indexColors.Contains(i))
                     extraColors.Add(i);
-            }
             extraColors.Sort();
-            _correctColors[0] = extraColors[2];
-            _correctColors[1] = extraColors[1];
-            _correctColors[2] = extraColors[0];
-            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            for (int i = 0; i < 3; i++)
+                _correctColors[i] = extraColors[2 - i];
+            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
         else if (_indexColors[0] % 5 == _indexColors[2] % 5)
         {
-            List<int> extraColors = new List<int>();
+            var extraColors = new List<int>();
             for (int i = 0 + (_indexColors[1] > 4 ? 5 : 0); i < 5 + (_indexColors[1] > 4 ? 5 : 0); i++)
-            {
                 if (!_indexColors.Contains(i))
                     extraColors.Add(i);
-            }
             extraColors.Sort();
-            _correctColors[0] = extraColors[2];
-            _correctColors[1] = extraColors[1];
-            _correctColors[2] = extraColors[0];
-            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            for (int i = 0; i < 3; i++)
+                _correctColors[i] = extraColors[2 - i];
+            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
         else if (_indexColors[1] % 5 == _indexColors[2] % 5)
         {
-            List<int> extraColors = new List<int>();
+            var extraColors = new List<int>();
             for (int i = 0 + (_indexColors[0] > 4 ? 5 : 0); i < 5 + (_indexColors[0] > 4 ? 5 : 0); i++)
-            {
                 if (!_indexColors.Contains(i))
                     extraColors.Add(i);
-            }
             extraColors.Sort();
-            _correctColors[0] = extraColors[2];
-            _correctColors[1] = extraColors[1];
-            _correctColors[2] = extraColors[0];
-            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            for (int i = 0; i < 3; i++)
+                _correctColors[i] = extraColors[2 - i];
+            Debug.LogFormat("[A Square #{0}] Two of a square's colors share a column. Correct colors are {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
         else if (!_indexColors.Contains(0) && !_indexColors.Contains(4) && !_indexColors.Contains(5) && !_indexColors.Contains(9))
         {
-            List<int> extraColors = new List<int>();
+            var extraColors = new List<int>();
             for (int i = 1; i < 4; i++)
             {
                 if (!_indexColors.Contains(i))
@@ -162,14 +121,9 @@ public class ASquareScript : MonoBehaviour
                 if (!_indexColors.Contains(i + 5))
                     extraColors.Add(i + 5);
             }
-            _correctColors[0] = extraColors[0];
-            _correctColors[1] = extraColors[1];
-            _correctColors[2] = extraColors[2];
-            Debug.LogFormat("[A Square #{0}] None of a square's index colors are in the left or right columns. Correct colors are {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            for (int i = 0; i < 3; i++)
+                _correctColors[i] = extraColors[i];
+            Debug.LogFormat("[A Square #{0}] None of a square's index colors are in the left or right columns. Correct colors are {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
         else
         {
@@ -197,11 +151,7 @@ public class ASquareScript : MonoBehaviour
             }
             _correctColors[1] = extraColors[1];
             _correctColors[2] = extraColors[0];
-            Debug.LogFormat("[A Square #{0}] Two of a square's colors are in the same row. Correct colors are: {1}, {2}, {3}", _moduleId,
-                COLORNAMES[_correctColors[0]],
-                COLORNAMES[_correctColors[1]],
-                COLORNAMES[_correctColors[2]]
-                );
+            Debug.LogFormat("[A Square #{0}] Two of a square's colors are in the same row. Correct colors are: {1}.", _moduleId, Enumerable.Range(0, 3).Select(i => _colorNames[_correctColors[i]]).Join(", "));
         }
     }
 
@@ -215,10 +165,7 @@ public class ASquareScript : MonoBehaviour
     {
         Audio.PlaySoundAtTransform("MouseDown", transform);
         if (!_moduleSolved && !_isStriking)
-        {
             _isHeld = true;
-        }
-
         return false;
     }
 
@@ -226,60 +173,45 @@ public class ASquareScript : MonoBehaviour
     {
         Audio.PlaySoundAtTransform("MouseUp", transform);
         if (!_moduleSolved && !_isStriking)
-        {
             _isHeld = false;
-        }
-        if (_inputColors.Count == 3)
+        if (_inputColors[_currentInputIx] == _correctColors[_currentInputIx])
         {
-            bool correct = true;
-            for (int i = 0; i < 3; i++)
-                if (_correctColors[i] != _inputColors[i])
-                    correct = false;
-            if (correct)
+            Debug.LogFormat("[A Square #{0}] Correctly inputted {1}.", _moduleId, _colorNames[_correctColors[_currentInputIx]]);
+            _currentInputIx++;
+            if (_currentInputIx == 3)
             {
                 _moduleSolved = true;
                 Module.HandlePass();
                 Audio.PlaySoundAtTransform("Correct", transform);
                 SquareObj.material = SquareCorrect;
-                Debug.LogFormat("[A Square #{0}] Inputted {1}, {2}, {3}. Module solved.", _moduleId,
-                    COLORNAMES[_correctColors[0]],
-                    COLORNAMES[_correctColors[1]],
-                    COLORNAMES[_correctColors[2]]
-                );
+                Debug.LogFormat("[A Square #{0}] Module solved.", _moduleId);
+                return;
             }
-            else
-            {
-                Module.HandleStrike();
-                SquareObj.material = SquareWrong;
-                Debug.LogFormat("[A Square #{0}] Inputted {1}, {2}, {3} instead of {4}, {5}, {6}. Strike.", _moduleId,
-                   COLORNAMES[_inputColors[0]],
-                   COLORNAMES[_inputColors[1]],
-                   COLORNAMES[_inputColors[2]],
-                   COLORNAMES[_correctColors[0]],
-                   COLORNAMES[_correctColors[1]],
-                   COLORNAMES[_correctColors[2]]
-               );
-                StartCoroutine(WaitToChangeWhite());
-            }
-            ColorblindText.text = "";
-            _inputColors = new List<int>();
+        }
+        else
+        {
+            Module.HandleStrike();
+            SquareObj.material = SquareWrong;
+            Debug.LogFormat("[A Square #{0}] Inputted {1} instead of {2}. Strike.", _moduleId, _colorNames[_inputColors[_currentInputIx]], _colorNames[_correctColors[_currentInputIx]]);
+            _currentInputIx = 0;
+            StartCoroutine(WaitToChangeWhite());
         }
     }
 
-    private void ModuleFocus(bool auto = true)
+    private void ChangeToColor(bool auto = true)
     {
-        if (!_moduleSolved && !_isStriking && auto)
+        if (!_moduleSolved && !_isStriking && auto && _canChangeColors)
         {
             Audio.PlaySoundAtTransform("Focus", transform);
-            ColorblindText.text = COLORNAMES[_colorShuffleArr[_timerLastDigit]].ToUpper();
+            ColorblindText.text = _colorNames[_colorShuffleArr[_timerLastDigit]].ToUpper();
             SquareObj.material = SquareColors[_colorShuffleArr[_timerLastDigit]];
             _currentColor = _timerLastDigit;
         }
     }
 
-    private void ModuleDefocus(bool auto = true)
+    private void ChangeToWhite(bool auto = true)
     {
-        if (!_moduleSolved && !_isStriking && auto)
+        if (!_moduleSolved && !_isStriking && auto && _canChangeColors)
         {
             if (_canMakeNoise)
                 Audio.PlaySoundAtTransform("Defocus", transform);
@@ -298,7 +230,6 @@ public class ASquareScript : MonoBehaviour
             if (_isHeld)
             {
                 Audio.PlaySoundAtTransform("Input", transform);
-                Debug.LogFormat("[A Square #{0}] Held the color {1}.", _moduleId, COLORNAMES[_colorShuffleArr[_currentColor]]);
                 _isHeld = false;
                 _inputColors.Add(_colorShuffleArr[_currentColor]);
             }
@@ -313,7 +244,7 @@ public class ASquareScript : MonoBehaviour
         if (!TwitchPlaysActive)
         {
             SquareObj.material = SquareColors[_colorShuffleArr[_currentColor]];
-            ColorblindText.text = COLORNAMES[_colorShuffleArr[_currentColor]].ToUpper();
+            ColorblindText.text = _colorNames[_colorShuffleArr[_currentColor]].ToUpper();
         }
         else
         {
@@ -339,9 +270,9 @@ public class ASquareScript : MonoBehaviour
             yield return null;
             while (_timerLastDigit != val)
                 yield return null;
-            ModuleFocus();
+            ChangeToColor();
             yield return new WaitForSeconds(1.5f);
-            ModuleDefocus();
+            ChangeToWhite();
         }
 
         var n = Regex.Match(command, @"^\s*(?:submit\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -352,14 +283,14 @@ public class ASquareScript : MonoBehaviour
             yield return null;
             while (_timerLastDigit != val)
                 yield return null;
-            ModuleFocus();
+            ChangeToColor();
             //yield return new WaitForSeconds(0.1f);
             SquareSel.OnInteract();
             while (_timerLastDigit == val)
                 yield return null;
             SquareSel.OnInteractEnded();
             //yield return new WaitForSeconds(0.1f);
-            ModuleDefocus();
+            ChangeToWhite();
         }
 
         var o = Regex.Match(command, @"^\s*(?:cycle)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
@@ -370,10 +301,10 @@ public class ASquareScript : MonoBehaviour
             for (int i = 0; i < 11; i++)
             {
                 val = _timerLastDigit;
-                ModuleFocus();
+                ChangeToColor();
                 while (val == _timerLastDigit)
                     yield return "trycancel";
-                ModuleDefocus();
+                ChangeToWhite();
             }
             _canMakeNoise = true;
         }
@@ -389,22 +320,11 @@ public class ASquareScript : MonoBehaviour
 
     private IEnumerator TwitchHandleForcedSolve()
     {
-        for (int i = 0; i < _inputColors.Count; i++)
-            if (_inputColors[i] != _correctColors[i])
-            {
-                _inputColors = new List<int>();
-                Debug.LogFormat("[A Square #{0}] An incorrect submission has been detected while executing the TP autosolver. Resetting input to avoid strike.", _moduleId);
-                // There's a bit of a debate on what to do in the case of an autosolver being run while the module has reached a state where a strike is unavoidable.
-                // I, however, have the stance that modules should never enter such a state, and should strike anyway if such state is detected. (Refer to X01)
-                // However, I've come to this stance after developing this module, and I can't really go backwards...??
-                // I much prefer that autosolvers appear to solve the same way as a human solves it, regardless if internal data needs to change,
-                // whereas autosolver developers such as eXish believe that the module should solve immediately, so internal data doesn't get changed.
-            }
-        for (int i = _inputColors.Count; i < 3; i++)
+        for (int i = _currentInputIx; i < 3; i++)
         {
             while (Array.IndexOf(_colorShuffleArr, _correctColors[i]) != (int)BombInfo.GetTime() % 10)
                 yield return true;
-            ModuleFocus();
+            ChangeToColor();
             yield return null;
             SquareSel.OnInteract();
             int t = (int)BombInfo.GetTime() % 10;
@@ -412,7 +332,7 @@ public class ASquareScript : MonoBehaviour
                 yield return null;
             SquareSel.OnInteractEnded();
             yield return null;
-            ModuleDefocus();
+            ChangeToWhite();
         }
         yield break;
     }

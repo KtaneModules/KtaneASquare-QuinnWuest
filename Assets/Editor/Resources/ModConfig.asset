@@ -14,13 +14,9 @@ MonoBehaviour:
   id: ASquareModule
   title: A Square
   author: Quinn Wuest
-  description: 'It''s not a circle.
-
-
-    Submission for Modding Jam #2: Unusual Interaction
-
-
-    Made by Quinn Wuest.'
+  description: "It's not a circle.\n\nSubmission for Modding Jam #2: Unusual Interaction\n\nMade
+    by Quinn Wuest.\n\n[url=https://ktane.timwi.de/HTML/A%20Square.html]Manual HTML[/url]\r\n[url=https://ktane.timwi.de/PDF/A%20Square.pdf]Manual
+    PDF[/url]"
   version: 1.0
   outputFolder: build
   previewImage: {fileID: 2800000, guid: 06c4c7171c484b94b9d1c4112da28fcd, type: 3}
