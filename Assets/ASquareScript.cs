@@ -41,9 +41,10 @@ public class ASquareScript : MonoBehaviour
     private int[] _colorShuffleArr;
     private string[] _colorNames = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
 
-    private bool TwitchPlaysActive;
     private bool _canChangeColors = true;
     private int _currentInputIx;
+
+    private bool _tpActive;
 
     private void Start()
     {
@@ -53,22 +54,17 @@ public class ASquareScript : MonoBehaviour
 
         SquareSel.OnInteract += SquarePress;
         SquareSel.OnInteractEnded += SquareRelease;
-        ModuleSel.OnHighlight += delegate { ChangeToColor(!TwitchPlaysActive); };
-        ModuleSel.OnHighlightEnded += delegate { ChangeToWhite(!TwitchPlaysActive); };
+        ModuleSel.OnHighlight += delegate { if (!TwitchPlaysActive) ChangeToColor(); };
+        ModuleSel.OnHighlightEnded += delegate { if (!TwitchPlaysActive) ChangeToWhite(); };
         ModuleSel.OnFocus += delegate { _canChangeColors = false; };
-        ModuleSel.OnDefocus += delegate { _canChangeColors = true; ChangeToWhite(!TwitchPlaysActive); };
+        ModuleSel.OnDefocus += delegate { _canChangeColors = true; if (!TwitchPlaysActive) ChangeToWhite(); };
 
         do
             _colorShuffleArr = Enumerable.Range(0, 10).ToArray().Shuffle();
         while (Enumerable.Range(0, 10).Where(i => Array.IndexOf(_colorShuffleArr, i) == i).Count() != 3);
         _indexColors = Enumerable.Range(0, 10).Where(i => Array.IndexOf(_colorShuffleArr, i) == i).ToList();
         Debug.LogFormat("[A Square #{0}] Color order: {1}.", _moduleId, Enumerable.Range(0, 10).Select(i => _colorNames[_colorShuffleArr[i]]).Join(", "));
-
-        Debug.LogFormat("[A Square #{0}] Index colors are: {1}, {2}, {3}.", _moduleId,
-            _colorNames[_indexColors[0]],
-            _colorNames[_indexColors[1]],
-            _colorNames[_indexColors[2]]
-            );
+        Debug.LogFormat("[A Square #{0}] Index colors are: {1}, {2}, {3}.", _moduleId, _colorNames[_indexColors[0]], _colorNames[_indexColors[1]], _colorNames[_indexColors[2]]);
 
         //Calculate correct colors:
         if ((_indexColors[0] < 5 && _indexColors[1] < 5 && _indexColors[2] < 5) || (_indexColors[0] > 4 && _indexColors[1] > 4 && _indexColors[2] > 4))
@@ -198,9 +194,9 @@ public class ASquareScript : MonoBehaviour
         }
     }
 
-    private void ChangeToColor(bool auto = true)
+    private void ChangeToColor()
     {
-        if (!_moduleSolved && !_isStriking && auto && _canChangeColors)
+        if (!_moduleSolved && !_isStriking && _canChangeColors)
         {
             Audio.PlaySoundAtTransform("Focus", transform);
             ColorblindText.text = _colorNames[_colorShuffleArr[_timerLastDigit]].ToUpper();
@@ -209,9 +205,9 @@ public class ASquareScript : MonoBehaviour
         }
     }
 
-    private void ChangeToWhite(bool auto = true)
+    private void ChangeToWhite()
     {
-        if (!_moduleSolved && !_isStriking && auto && _canChangeColors)
+        if (!_moduleSolved && !_isStriking && _canChangeColors)
         {
             if (_canMakeNoise)
                 Audio.PlaySoundAtTransform("Defocus", transform);
@@ -253,7 +249,9 @@ public class ASquareScript : MonoBehaviour
         }
     }
 
+    private bool TwitchPlaysActive;
     private bool _canMakeNoise = true;
+    private bool TwitchShouldCancelCommand;
 
 #pragma warning disable 0414
     private readonly string TwitchHelpMessage = "!{0} focus 2 : Focus on a square on a 2. | !{0} submit 5 : Hold a square after focusing it on a 5. | !{0} cycle : Cycle through all colors. | !{0} colorblind : Set colorblind mode active.";
@@ -262,60 +260,68 @@ public class ASquareScript : MonoBehaviour
     private IEnumerator ProcessTwitchCommand(string command)
     {
         int val;
-        var m = Regex.Match(command, @"^\s*(?:focus\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var m = Regex.Match(command, @"^\s*focus\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (m.Success)
         {
             if (!int.TryParse(m.Groups[1].Value, out val) || val < 0 || val > 9)
                 yield break;
+            _canChangeColors = false;
             yield return null;
             while (_timerLastDigit != val)
-                yield return null;
+                yield return "trycancel";
+            _canChangeColors = true;
             ChangeToColor();
             yield return new WaitForSeconds(1.5f);
             ChangeToWhite();
+            yield break;
         }
 
-        var n = Regex.Match(command, @"^\s*(?:submit\s+)?(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var n = Regex.Match(command, @"^\s*submit\s+(\d+)\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (n.Success)
         {
             if (!int.TryParse(n.Groups[1].Value, out val) || val < 0 || val > 9)
                 yield break;
+            _canChangeColors = false;
             yield return null;
             while (_timerLastDigit != val)
-                yield return null;
+                yield return "trycancel";
+            _canChangeColors = true;
             ChangeToColor();
-            //yield return new WaitForSeconds(0.1f);
             SquareSel.OnInteract();
             while (_timerLastDigit == val)
                 yield return null;
             SquareSel.OnInteractEnded();
-            //yield return new WaitForSeconds(0.1f);
             ChangeToWhite();
+            yield break;
         }
 
-        var o = Regex.Match(command, @"^\s*(?:cycle)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var o = Regex.Match(command, @"^\s*cycle\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (o.Success)
         {
             yield return null;
             _canMakeNoise = false;
-            for (int i = 0; i < 11; i++)
+            _canChangeColors = false;
+            for (int i = 0; i < 11 && !TwitchShouldCancelCommand; i++)
             {
                 val = _timerLastDigit;
+                _canChangeColors = true;
                 ChangeToColor();
                 while (val == _timerLastDigit)
-                    yield return "trycancel";
-                ChangeToWhite();
+                    yield return null;
             }
             _canMakeNoise = true;
+            ChangeToWhite();
+            if (TwitchShouldCancelCommand)
+                yield return "cancelled";
+            yield break;
         }
 
-        var p = Regex.Match(command, @"^\s*(?:colorblind)?\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        var p = Regex.Match(command, @"^\s*colorblind\s*$", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
         if (p.Success)
         {
             yield return null;
             SetColorblindMode(!_colorblindMode);
         }
-        yield break;
     }
 
     private IEnumerator TwitchHandleForcedSolve()
