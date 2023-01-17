@@ -30,21 +30,20 @@ public class ASquareScript : MonoBehaviour
 
     private bool _isHeld;
     private bool _isStriking;
+    private bool _hasSubmitted;
     private List<int> _indexColors = new List<int>();
 
     private int _timerLastDigit;
     private int _timeIx;
     private int _currentColor;
-    private int[] _correctColors = new int[3];
+    private readonly int[] _correctColors = new int[3];
     private List<int> _inputColors = new List<int>();
 
     private int[] _colorShuffleArr;
-    private string[] _colorNames = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
+    private static readonly string[] _colorNames = { "Orange", "Pink", "Cyan", "Yellow", "Lavender", "Brown", "Tan", "Blue", "Jade", "Indigo", "White" };
 
     private bool _canChangeColors = true;
     private int _currentInputIx;
-
-    private bool _tpActive;
 
     private void Start()
     {
@@ -170,6 +169,9 @@ public class ASquareScript : MonoBehaviour
         Audio.PlaySoundAtTransform("MouseUp", transform);
         if (!_moduleSolved && !_isStriking)
             _isHeld = false;
+        if (!_hasSubmitted)
+            return;
+        _hasSubmitted = false;
         if (_inputColors[_currentInputIx] == _correctColors[_currentInputIx])
         {
             Debug.LogFormat("[A Square #{0}] Correctly inputted {1}.", _moduleId, _colorNames[_correctColors[_currentInputIx]]);
@@ -178,6 +180,7 @@ public class ASquareScript : MonoBehaviour
             {
                 _moduleSolved = true;
                 Module.HandlePass();
+                ColorblindText.text = "GREEN";
                 Audio.PlaySoundAtTransform("Correct", transform);
                 SquareObj.material = SquareCorrect;
                 Debug.LogFormat("[A Square #{0}] Module solved.", _moduleId);
@@ -187,10 +190,12 @@ public class ASquareScript : MonoBehaviour
         else
         {
             Module.HandleStrike();
+            ColorblindText.text = "RED";
             SquareObj.material = SquareWrong;
             Debug.LogFormat("[A Square #{0}] Inputted {1} instead of {2}. Strike.", _moduleId, _colorNames[_inputColors[_currentInputIx]], _colorNames[_correctColors[_currentInputIx]]);
             _currentInputIx = 0;
             StartCoroutine(WaitToChangeWhite());
+            _inputColors = new List<int>();
         }
     }
 
@@ -228,6 +233,7 @@ public class ASquareScript : MonoBehaviour
                 Audio.PlaySoundAtTransform("Input", transform);
                 _isHeld = false;
                 _inputColors.Add(_colorShuffleArr[_currentColor]);
+                _hasSubmitted = true;
             }
         }
     }
@@ -237,7 +243,7 @@ public class ASquareScript : MonoBehaviour
         _isStriking = true;
         yield return new WaitForSeconds(1.5f);
         _isStriking = false;
-        if (!TwitchPlaysActive)
+        if (!TwitchPlaysActive && !_canChangeColors)
         {
             SquareObj.material = SquareColors[_colorShuffleArr[_currentColor]];
             ColorblindText.text = _colorNames[_colorShuffleArr[_currentColor]].ToUpper();
